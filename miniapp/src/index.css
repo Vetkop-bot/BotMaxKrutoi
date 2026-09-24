@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+@layer utilities {
+  /* Respect notches / home indicator on phones */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pt-safe-6 { padding-top: calc(env(safe-area-inset-top) + 1.5rem); }
+  .pb-safe-3 { padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem); }
+  .pb-safe-4 { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
