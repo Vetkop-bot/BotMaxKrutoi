@@ -1,14 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
-const repoName = 'BotMaxKrutoi';
 export default defineConfig({
-  base: `/${repoName}/`,
+  // Relative paths: works on GitHub Pages (/BotMaxKrutoi/) and in Docker (/)
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  server: {
+    // Local dev: forward API calls to max-bot running on :3000
+    proxy: { '/api': 'http://localhost:3000' },
   },
   optimizeDeps: {
     exclude: ['lucide-react'],

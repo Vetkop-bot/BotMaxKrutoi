@@ -1,10 +1,11 @@
 import { Search, Plus, ClipboardList, User } from "lucide-react";
+import type { MenuAction } from "../types";
 
 interface MainMenuProps {
-  onSelect: (action: string) => void;
+  onSelect: (action: MenuAction) => void;
 }
 
-const items = [
+const items: { id: MenuAction; label: string; icon: typeof Search; gradient: string }[] = [
   { id: "find", label: "Найти встречу", icon: Search, gradient: "from-blue-500 to-cyan-500" },
   { id: "create", label: "Создать встречу", icon: Plus, gradient: "from-max-500 to-max-600" },
   { id: "my", label: "Мои встречи", icon: ClipboardList, gradient: "from-emerald-500 to-teal-500" },

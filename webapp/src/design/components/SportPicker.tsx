@@ -1,4 +1,4 @@
-import { SPORTS } from "../mockData";
+import { SPORTS } from "../sports";
 import type { SportId } from "../types";
 
 interface SportPickerProps {

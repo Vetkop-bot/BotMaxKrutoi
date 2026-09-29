@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { MapPin, Calendar, Clock, Users, FileText, Check } from "lucide-react";
-import { SPORTS, CITIES } from "../mockData";
-import type { SportId, Meeting } from "../types";
+import { SPORTS, CITIES, todayIso } from "../sports";
+import type { SportId, MeetingDraft } from "../types";
 
 interface CreateFormProps {
-  onCreate: (meeting: Meeting) => void;
+  onCreate: (draft: MeetingDraft) => Promise<void>;
+  busy?: boolean;
 }
 
-export function CreateForm({ onCreate }: CreateFormProps) {
+function isInPast(date: string, time: string): boolean {
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min).getTime() < Date.now();
+}
+
+export function CreateForm({ onCreate, busy }: CreateFormProps) {
+  const [submitted, setSubmitted] = useState(false);
   const [sport, setSport] = useState<SportId | "">("");
   const [title, setTitle] = useState("");
   const [place, setPlace] = useState("");
@@ -17,23 +25,24 @@ export function CreateForm({ onCreate }: CreateFormProps) {
   const [capacity, setCapacity] = useState(10);
   const [comment, setComment] = useState("");
 
-  const canSubmit = sport && title && place && date && time;
+  const inPast = Boolean(date && time && isInPast(date, time));
+  const canSubmit = Boolean(sport && title.trim() && place.trim() && date && time && !inPast && !busy && !submitted);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit || !sport) return;
-    onCreate({
-      id: `u${Date.now()}`,
+    setSubmitted(true);
+    await onCreate({
       sport,
-      title,
-      place,
+      title: title.trim(),
+      place: place.trim(),
       city,
       date,
       time,
       capacity,
-      joined: 1,
-      organizer: "Алексей Морозов",
-      comment: comment || undefined,
+      comment: comment.trim() || undefined,
     });
+    // Allow a retry if the server rejected the meeting (the error is shown as a bot message)
+    setSubmitted(false);
   };
 
   return (
@@ -94,9 +103,6 @@ export function CreateForm({ onCreate }: CreateFormProps) {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <button className="flex items-center gap-1 px-2.5 py-2 bg-max-50 text-max-600 rounded-lg text-xs font-medium hover:bg-max-100 transition-colors">
-            <MapPin className="w-3.5 h-3.5" /> На карте
-          </button>
         </div>
       </div>
 
@@ -107,6 +113,7 @@ export function CreateForm({ onCreate }: CreateFormProps) {
           </label>
           <input
             type="date"
+            min={todayIso()}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-max-300"
@@ -125,9 +132,11 @@ export function CreateForm({ onCreate }: CreateFormProps) {
         </div>
       </div>
 
+      {inPast && <p className="-mt-2 px-1 text-xs text-error-500">Это время уже прошло</p>}
+
       <div>
         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5 px-1">
-          <Users className="w-3.5 h-3.5" /> Участников: <span className="text-max-600 font-bold">{capacity}</span>
+          <Users className="w-3.5 h-3.5" /> Участников вместе с тобой: <span className="text-max-600 font-bold">{capacity}</span>
         </label>
         <input
           type="range"
@@ -161,7 +170,7 @@ export function CreateForm({ onCreate }: CreateFormProps) {
             : "bg-slate-100 text-slate-400 cursor-not-allowed"
         }`}
       >
-        <Check className="w-4 h-4" /> Создать встречу
+        <Check className="w-4 h-4" /> {submitted ? "Создаю…" : "Создать встречу"}
       </button>
     </div>
   );

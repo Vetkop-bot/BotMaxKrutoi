@@ -1,16 +1,18 @@
 import { MapPin, Calendar, Clock, Users, User, Check } from "lucide-react";
-import { sportEmoji, sportLabel } from "../mockData";
+import { formatDate, sportEmoji, sportLabel } from "../sports";
 import type { Meeting } from "../types";
 
 interface MeetingCardProps {
   meeting: Meeting;
   onJoin: (meeting: Meeting) => void;
-  joined?: boolean;
+  busy?: boolean;
 }
 
-export function MeetingCard({ meeting, onJoin, joined }: MeetingCardProps) {
-  const fillPct = Math.round((meeting.joined / meeting.capacity) * 100);
+export function MeetingCard({ meeting, onJoin, busy }: MeetingCardProps) {
+  const fillPct = Math.min(100, Math.round((meeting.joined / meeting.capacity) * 100));
   const isFull = meeting.joined >= meeting.capacity;
+  const joined = meeting.isJoined;
+  const closed = meeting.cancelled || meeting.isPast;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden hover:shadow-soft transition-shadow duration-200">
@@ -32,7 +34,7 @@ export function MeetingCard({ meeting, onJoin, joined }: MeetingCardProps) {
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            {meeting.date}
+            {formatDate(meeting.date)}
           </span>
           <span className="flex items-center gap-1">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -74,18 +76,24 @@ export function MeetingCard({ meeting, onJoin, joined }: MeetingCardProps) {
       <div className="px-3.5 pb-3.5">
         <button
           onClick={() => onJoin(meeting)}
-          disabled={isFull || joined}
+          disabled={isFull || joined || closed || busy}
           className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
-            joined
+            closed
+              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+              : joined
               ? "bg-success-500 text-white"
               : isFull
                 ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                 : "bg-gradient-to-r from-max-500 to-max-600 text-white hover:shadow-soft hover:-translate-y-0.5"
           }`}
         >
-          {joined ? (
+          {meeting.cancelled ? (
+            "Встреча отменена"
+          ) : meeting.isPast ? (
+            "Встреча прошла"
+          ) : joined ? (
             <>
-              <Check className="w-4 h-4" /> Вы записаны
+              <Check className="w-4 h-4" /> {meeting.isOrganizer ? "Вы организатор" : "Вы записаны"}
             </>
           ) : isFull ? (
             "Мест нет"
@@ -101,11 +109,11 @@ export function MeetingCard({ meeting, onJoin, joined }: MeetingCardProps) {
 interface MeetingListProps {
   meetings: Meeting[];
   onJoin: (meeting: Meeting) => void;
-  joinedIds: Set<string>;
+  busy?: boolean;
   emptyText?: string;
 }
 
-export function MeetingList({ meetings, onJoin, joinedIds, emptyText }: MeetingListProps) {
+export function MeetingList({ meetings, onJoin, busy, emptyText }: MeetingListProps) {
   if (meetings.length === 0) {
     return (
       <div className="text-center py-8 text-sm text-slate-400 animate-fade-in">
@@ -116,7 +124,7 @@ export function MeetingList({ meetings, onJoin, joinedIds, emptyText }: MeetingL
   return (
     <div className="space-y-3 animate-fade-in">
       {meetings.map((m) => (
-        <MeetingCard key={m.id} meeting={m} onJoin={onJoin} joined={joinedIds.has(m.id)} />
+        <MeetingCard key={m.id} meeting={m} onJoin={onJoin} busy={busy} />
       ))}
     </div>
   );

@@ -1,39 +1,32 @@
-import { useEffect, useState } from 'react';
+import type { MaxUser } from "../types/max";
 
-export function useMaxApp() {
-    const [ready, setReady] = useState(false);
-    const [userData, setUserData] = useState<any>(null);
+const webApp = window.WebApp;
 
-    useEffect(() => {
-        const maxApp = window.MAX || window.WebApp;
+/** True only inside the MAX client: outside it the bridge exists but initData is empty. */
+export const isInMax = Boolean(webApp?.initData);
 
-        if (maxApp) {
-            if (maxApp.ready) maxApp.ready();
-            if (maxApp.expand) maxApp.expand();
-
-            setUserData(maxApp.initDataUnsafe?.user || null);
-            setReady(true);
-        } else {
-            console.warn('MAX SDK не найден, запускаем в режиме браузера');
-            setReady(true);
-        }
-    }, []);
-
-    const sendData = (data: any) => {
-        const maxApp = window.MAX || window.WebApp;
-        if (maxApp?.sendData) {
-            maxApp.sendData(JSON.stringify(data));
-        } else {
-            console.log('sendData (mock):', data);
-        }
-    };
-
-    const closeApp = () => {
-        const maxApp = window.MAX || window.WebApp;
-        if (maxApp?.close) {
-            maxApp.close();
-        }
-    };
-
-    return { ready, userData, sendData, closeApp };
+// Bridge requests reject on timeout — don't let that become an unhandled rejection
+function quiet(result: unknown) {
+  if (result instanceof Promise) result.catch(() => {});
 }
+
+export const maxApp = {
+  initData: (isInMax && webApp?.initData) || "",
+  user: (isInMax ? webApp?.initDataUnsafe.user : undefined) ?? (null as MaxUser | null),
+  startParam: (isInMax ? webApp?.initDataUnsafe.start_param : undefined) ?? null,
+
+  ready() {
+    if (isInMax) webApp!.ready();
+  },
+
+  haptic(type: "success" | "error" | "tap") {
+    if (!isInMax) return;
+    if (type === "tap") quiet(webApp!.HapticFeedback.impactOccurred("light"));
+    else quiet(webApp!.HapticFeedback.notificationOccurred(type));
+  },
+
+  share(text: string) {
+    if (isInMax) quiet(webApp!.shareMaxContent({ text }));
+    else if (navigator.share) navigator.share({ text }).catch(() => {});
+  },
+};

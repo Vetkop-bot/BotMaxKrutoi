@@ -1,17 +1,28 @@
-import { useState } from "react";
-import { Calendar, MapPin, Clock, CheckCircle2, History } from "lucide-react";
-import { sportEmoji } from "../mockData";
+import { useEffect, useState } from "react";
+import { Calendar, MapPin, Clock, CheckCircle2, History, Crown } from "lucide-react";
+import { formatDate, sportEmoji } from "../sports";
+import { api, ApiError } from "../api";
 import type { Meeting } from "../types";
 
-interface MyMeetingsProps {
-  upcoming: Meeting[];
-  past: Meeting[];
-  joinedIds: Set<string>;
-}
+type Data = { upcoming: Meeting[]; past: Meeting[] };
 
-export function MyMeetings({ upcoming, past, joinedIds }: MyMeetingsProps) {
+/** Loads the user's meetings from the API when shown in the chat */
+export function MyMeetings() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
-  const list = tab === "upcoming" ? upcoming : past;
+  const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .myMeetings()
+      .then(setData)
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Не удалось загрузить встречи"));
+  }, []);
+
+  if (error) return <div className="text-center py-6 text-sm text-error-500">{error}</div>;
+  if (!data) return <div className="text-center py-6 text-sm text-slate-400">Загружаю…</div>;
+
+  const list = tab === "upcoming" ? data.upcoming : data.past;
 
   return (
     <div className="animate-pop-in">
@@ -22,7 +33,7 @@ export function MyMeetings({ upcoming, past, joinedIds }: MyMeetingsProps) {
             tab === "upcoming" ? "bg-white text-max-600 shadow-sm" : "text-slate-500"
           }`}
         >
-          Предстоящие ({upcoming.length})
+          Предстоящие ({data.upcoming.length})
         </button>
         <button
           onClick={() => setTab("past")}
@@ -30,7 +41,7 @@ export function MyMeetings({ upcoming, past, joinedIds }: MyMeetingsProps) {
             tab === "past" ? "bg-white text-max-600 shadow-sm" : "text-slate-500"
           }`}
         >
-          Прошедшие ({past.length})
+          Прошедшие ({data.past.length})
         </button>
       </div>
 
@@ -41,7 +52,6 @@ export function MyMeetings({ upcoming, past, joinedIds }: MyMeetingsProps) {
       ) : (
         <div className="space-y-2.5">
           {list.map((m) => {
-            const isJoined = joinedIds.has(m.id);
             const isPast = tab === "past";
             return (
               <div
@@ -56,7 +66,7 @@ export function MyMeetings({ upcoming, past, joinedIds }: MyMeetingsProps) {
                     <h3 className="font-semibold text-sm text-slate-800 truncate">{m.title}</h3>
                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
                       <span className="flex items-center gap-0.5">
-                        <Calendar className="w-3 h-3" /> {m.date}
+                        <Calendar className="w-3 h-3" /> {formatDate(m.date)}
                       </span>
                       <span className="flex items-center gap-0.5">
                         <Clock className="w-3 h-3" /> {m.time}
@@ -70,22 +80,26 @@ export function MyMeetings({ upcoming, past, joinedIds }: MyMeetingsProps) {
                     className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full ${
                       isPast
                         ? "bg-slate-100 text-slate-500"
-                        : isJoined
-                          ? "bg-success-500/10 text-success-600"
-                          : "bg-max-50 text-max-600"
+                        : m.isOrganizer
+                          ? "bg-max-50 text-max-600"
+                          : "bg-success-500/10 text-success-600"
                     }`}
                   >
-                    {isPast ? (
-                      <span className="flex items-center gap-0.5">
-                        <History className="w-2.5 h-2.5" /> Завершена
-                      </span>
-                    ) : isJoined ? (
-                      <span className="flex items-center gap-0.5">
-                        <CheckCircle2 className="w-2.5 h-2.5" /> Записан
-                      </span>
-                    ) : (
-                      "Организатор"
-                    )}
+                    <span className="flex items-center gap-0.5">
+                      {isPast ? (
+                        <>
+                          <History className="w-2.5 h-2.5" /> Завершена
+                        </>
+                      ) : m.isOrganizer ? (
+                        <>
+                          <Crown className="w-2.5 h-2.5" /> Организатор
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-2.5 h-2.5" /> Записан
+                        </>
+                      )}
+                    </span>
                   </span>
                 </div>
               </div>

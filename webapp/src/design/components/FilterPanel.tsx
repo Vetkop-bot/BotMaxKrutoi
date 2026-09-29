@@ -1,25 +1,19 @@
 import { useState } from "react";
 import { MapPin, Calendar, Clock, Users, Search } from "lucide-react";
-import { CITIES } from "../mockData";
-import type { SportId } from "../types";
-
-export interface FilterState {
-  city: string;
-  date: string;
-  time: string;
-  minPeople: number;
-}
+import { CITIES, todayIso } from "../sports";
+import type { MeetingFilters, SportId } from "../types";
 
 interface FilterPanelProps {
   sport: SportId;
-  onApply: (filters: FilterState) => void;
+  onApply: (filters: MeetingFilters) => void;
+  busy?: boolean;
 }
 
-export function FilterPanel({ sport, onApply }: FilterPanelProps) {
+export function FilterPanel({ sport, onApply, busy }: FilterPanelProps) {
   const [city, setCity] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [minPeople, setMinPeople] = useState(0);
+  const [minFree, setMinFree] = useState(1);
 
   return (
     <div className="animate-pop-in space-y-3.5">
@@ -46,6 +40,7 @@ export function FilterPanel({ sport, onApply }: FilterPanelProps) {
           </label>
           <input
             type="date"
+            min={todayIso()}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-max-300"
@@ -53,7 +48,7 @@ export function FilterPanel({ sport, onApply }: FilterPanelProps) {
         </div>
         <div>
           <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5 px-1">
-            <Clock className="w-3.5 h-3.5" /> Время
+            <Clock className="w-3.5 h-3.5" /> Не раньше
           </label>
           <input
             type="time"
@@ -66,21 +61,22 @@ export function FilterPanel({ sport, onApply }: FilterPanelProps) {
 
       <div>
         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5 px-1">
-          <Users className="w-3.5 h-3.5" /> Мин. участников: <span className="text-max-600 font-bold">{minPeople}</span>
+          <Users className="w-3.5 h-3.5" /> Свободных мест от: <span className="text-max-600 font-bold">{minFree}</span>
         </label>
         <input
           type="range"
-          min={0}
-          max={15}
-          value={minPeople}
-          onChange={(e) => setMinPeople(Number(e.target.value))}
+          min={1}
+          max={10}
+          value={minFree}
+          onChange={(e) => setMinFree(Number(e.target.value))}
           className="w-full accent-max-500"
         />
       </div>
 
       <button
-        onClick={() => onApply({ city, date, time, minPeople })}
-        className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-max-500 to-max-600 text-white font-semibold text-sm rounded-xl shadow-soft hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95"
+        onClick={() => onApply({ sport, city, date, time, minFree })}
+        disabled={busy}
+        className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-max-500 to-max-600 text-white font-semibold text-sm rounded-xl shadow-soft hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-60"
       >
         <Search className="w-4 h-4" />
         Показать встречи
