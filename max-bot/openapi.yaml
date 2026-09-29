@@ -1,0 +1,196 @@
+openapi: 3.0.3
+info:
+  title: SportBuddy API
+  version: 1.0.0
+  description: |
+    HTTP API мини-приложения SportBuddy для MAX.
+    Каждый запрос (кроме /api/health) должен содержать заголовок X-Max-Init-Data —
+    строку window.WebApp.initData. Сервер проверяет её подпись токеном бота
+    (https://dev.max.ru/docs/webapps/validation).
+servers:
+  - url: http://localhost:8080
+    description: docker compose (nginx проксирует /api на сервис бота)
+
+components:
+  securitySchemes:
+    maxInitData:
+      type: apiKey
+      in: header
+      name: X-Max-Init-Data
+  schemas:
+    SportId:
+      type: string
+      enum: [football, volleyball, basketball, running, tennis, badminton, other]
+    Meeting:
+      type: object
+      required: [id, sport, title, place, city, date, time, capacity, joined, organizer, isJoined, isOrganizer, isPast]
+      properties:
+        id: { type: string, example: "12" }
+        sport: { $ref: '#/components/schemas/SportId' }
+        title: { type: string, example: Вечерний футбол }
+        place: { type: string, example: Парк Горького, поле №2 }
+        city: { type: string, example: Москва }
+        date: { type: string, format: date, example: "2026-10-04" }
+        time: { type: string, pattern: '^\d{2}:\d{2}$', example: "19:00" }
+        capacity: { type: integer, minimum: 2, maximum: 100 }
+        joined: { type: integer, description: Участников вместе с организатором }
+        organizer: { type: string, description: Имя организатора }
+        comment: { type: string }
+        isJoined: { type: boolean, description: Текущий пользователь записан }
+        isOrganizer: { type: boolean }
+        isPast: { type: boolean }
+    MeetingDraft:
+      type: object
+      required: [sport, title, place, city, date, time, capacity]
+      properties:
+        sport: { $ref: '#/components/schemas/SportId' }
+        title: { type: string, maxLength: 80 }
+        place: { type: string, maxLength: 150 }
+        city: { type: string, maxLength: 60 }
+        date: { type: string, format: date }
+        time: { type: string, pattern: '^\d{2}:\d{2}$' }
+        capacity: { type: integer, minimum: 2, maximum: 100 }
+        comment: { type: string, maxLength: 500 }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+  responses:
+    Error:
+      description: Ошибка
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+security:
+  - maxInitData: []
+
+paths:
+  /api/health:
+    get:
+      summary: Проверка работоспособности (API и БД)
+      security: []
+      responses:
+        '200': { description: OK }
+
+  /api/me:
+    get:
+      summary: Профиль текущего пользователя и статистика
+      responses:
+        '200':
+          description: Профиль
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      name: { type: string }
+                      username: { type: string, nullable: true }
+                      photoUrl: { type: string, nullable: true }
+                  stats:
+                    type: object
+                    properties:
+                      attended: { type: integer }
+                      upcoming: { type: integer }
+                      created: { type: integer }
+                      favoriteSports:
+                        type: array
+                        items: { $ref: '#/components/schemas/SportId' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/meetings:
+    get:
+      summary: Поиск предстоящих встреч
+      parameters:
+        - { name: sport, in: query, schema: { $ref: '#/components/schemas/SportId' } }
+        - { name: city, in: query, schema: { type: string } }
+        - { name: date, in: query, schema: { type: string, format: date } }
+        - { name: time, in: query, description: Не раньше этого времени, schema: { type: string } }
+        - { name: minFree, in: query, description: Минимум свободных мест, schema: { type: integer } }
+      responses:
+        '200':
+          description: Список встреч (до 50), по времени начала
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Meeting' }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Создать встречу (организатор записывается автоматически)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MeetingDraft' }
+      responses:
+        '201':
+          description: Созданная встреча
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meeting' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/meetings/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Встреча по id
+      responses:
+        '200':
+          description: Встреча
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meeting' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Отменить встречу (только организатор; участники получают сообщение от бота)
+      responses:
+        '204': { description: Отменена }
+        '403': { $ref: '#/components/responses/Error' }
+
+  /api/meetings/{id}/join:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      summary: Записаться на встречу (организатор получает сообщение от бота)
+      responses:
+        '200':
+          description: Обновлённая встреча
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meeting' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Отменить свою запись
+      responses:
+        '200':
+          description: Обновлённая встреча
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meeting' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/my-meetings:
+    get:
+      summary: Встречи пользователя (где он участник или организатор)
+      responses:
+        '200':
+          description: Предстоящие и прошедшие
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  upcoming:
+                    type: array
+                    items: { $ref: '#/components/schemas/Meeting' }
+                  past:
+                    type: array
+                    items: { $ref: '#/components/schemas/Meeting' }
