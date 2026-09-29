@@ -2,7 +2,7 @@ import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import 'dotenv/config';
 
 const TOKEN = process.env.BOT_TOKEN;
-const WEBAPP_URL = process.env.WEBAPP_URL || 'https://sportbuddy.vercel.app';
+const WEBAPP_URL = process.env.WEBAPP_URL;
 
 const bot = new Bot(TOKEN);
 
